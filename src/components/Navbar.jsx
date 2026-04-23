@@ -24,7 +24,7 @@ const Navbar = () => {
                     <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl gradient-gold flex items-center justify-center">
                         <MapPin className="w-4 h-4 md:w-5 md:h-5 text-secondary-foreground" />
                     </div>
-                    <span className="text-lg md:text-xl font-serif font-bold truncate">RealEstateLandChat</span>
+                    <span className="text-lg md:text-xl font-serif font-bold truncate">EstateGPT</span>
                 </Link>
 
                 <div className="flex items-center gap-2 md:gap-4">

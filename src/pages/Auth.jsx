@@ -117,7 +117,7 @@ const Auth = () => {
             <div className="w-12 h-12 rounded-xl gradient-gold flex items-center justify-center">
               <MapPin className="w-7 h-7 text-secondary-foreground" />
             </div>
-            <h1 className="text-3xl font-serif font-bold">RealEstateLandChat</h1>
+            <h1 className="text-3xl font-serif font-bold">EstateGPT</h1>
           </div>
 
           <h2 className="text-4xl font-serif font-bold mb-6 leading-tight">
@@ -163,7 +163,7 @@ const Auth = () => {
             <div className="w-10 h-10 rounded-xl gradient-gold flex items-center justify-center">
               <MapPin className="w-6 h-6 text-secondary-foreground" />
             </div>
-            <h1 className="text-2xl font-serif font-bold">RealEstateLandChat</h1>
+            <h1 className="text-2xl font-serif font-bold">EstateGPT</h1>
           </div>
 
           <Card className="border-0 shadow-elegant">

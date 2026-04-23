@@ -23,7 +23,7 @@ const chatWithAI = asyncHandler(async (req, res) => {
     const greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'greetings', 'yo'];
     if (greetings.includes(lowerMsg) || (lowerMsg.length < 10 && greetings.some(g => lowerMsg.startsWith(g)))) {
         return res.json({
-            response: "Hello! 👋 I'm your AI Real Estate Assistant. I can help you find properties, analyze trends, or answer questions about land investment. Try asking: 'Find me a plot in Austin under $200k' or 'Is agricultural land a good investment?'",
+            response: "Greetings! I am EstateGPT. 🏦 I can help you analyze property investments, find specific land plots, or provide insights into real estate trends. How can I assist your investment strategy today?",
             properties: []
         });
     }
@@ -54,24 +54,26 @@ const chatWithAI = asyncHandler(async (req, res) => {
             ).join('\n');
 
             const prompt = `
-                You are a smart and helpful real estate assistant for 'LandChat Connect'.
+                You are EstateGPT, a sophisticated AI Real Estate Investment Analyst.
                 
                 USER QUERY: "${message}"
                 
-                CONTEXT (Available Properties):
+                CONTEXT (Live Property Listings):
                 ${contextString}
                 
-                INSTRUCTIONS:
-                1. Answer the user's query naturally and accurately using the property context provided.
-                2. If the user asks for specific properties, recommend the best matches from the list above. Mention their exact titles and prices.
-                3. If the user asks general real estate questions (e.g., "Is land a good investment?"), answer with expertise.
-                4. If no properties match the criteria, suggest similar ones or general areas from the context.
-                5. Format your response nicely with newlines.
+                GOAL: Provide professional, data-driven real estate advice and property recommendations.
                 
-                IMPORTANT: Return your response in valid JSON format with the following structure:
+                CORE DIRECTIVES:
+                1. BRANDING: Always identify as EstateGPT. Maintain a professional, expert, and helpful tone.
+                2. ANALYSIS: When recommending properties, briefly mention why they are good investments (e.g., location value, size-to-price ratio).
+                3. ACCURACY: Use ONLY the provided context for specific property details. Do not hallucinate properties.
+                4. ADVICE: If the user asks general questions, provide high-level professional advice on land acquisition, legal checks, and market trends.
+                5. FORMATTING: Use clear structure with bullet points if listing multiple insights.
+                
+                RESPONSE STRUCTURE (JSON):
                 {
-                    "response": "Your natural language response here",
-                    "matching_property_indices": [1, 4] // Array of indices (1-based from context) of recommended properties. Empty if none.
+                    "response": "Your expert analysis and response here",
+                    "matching_property_indices": [1, 4] // Indices of properties from the context that best match the user's intent.
                 }
             `;
 
@@ -187,7 +189,7 @@ const handleRuleBasedFallback = async (message, res) => {
 
     // General Advice handling
     if (!searchPerformed && (lowerMsg.includes('advice') || lowerMsg.includes('invest'))) {
-        responseText = "Real Estate Tip: Location and future development plans are key factors in land value appreciation. Always verify land titles before purchasing.";
+        responseText = "EstateGPT Insight: Real estate wealth is built on 'Location, Liquidity, and Legality'. Always ensure a clear title deed and check for upcoming infrastructure projects in the area (Zoning verification is critical).";
     }
 
     res.json({

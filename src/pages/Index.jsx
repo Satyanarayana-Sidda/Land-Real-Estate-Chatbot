@@ -71,7 +71,7 @@ const Index = () => {
             <div className="w-10 h-10 rounded-xl gradient-gold flex items-center justify-center">
               <MapPin className="w-5 h-5 text-secondary-foreground" />
             </div>
-            <span className="text-xl font-serif font-bold">RealEstateLandChat</span>
+            <span className="text-xl font-serif font-bold">EstateGPT</span>
           </Link>
 
           <div className="flex items-center gap-4">
@@ -225,10 +225,10 @@ const Index = () => {
               <div className="w-10 h-10 rounded-xl gradient-gold flex items-center justify-center">
                 <MapPin className="w-5 h-5 text-secondary-foreground" />
               </div>
-              <span className="text-xl font-serif font-bold">RealEstateLandChat</span>
+              <span className="text-xl font-serif font-bold">EstateGPT</span>
             </div>
             <p className="text-muted-foreground text-sm">
-              © 2024 RealEstateLandChat. All rights reserved.
+              © 2024 EstateGPT. All rights reserved.
             </p>
           </div>
         </div>
