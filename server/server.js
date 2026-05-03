@@ -31,6 +31,10 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'healthy', message: 'AWS ALB Health Check Passed' });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
