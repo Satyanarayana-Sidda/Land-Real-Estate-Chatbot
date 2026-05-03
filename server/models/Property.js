@@ -1,66 +1,80 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const propertySchema = mongoose.Schema(
-    {
-        owner: {
-            type: mongoose.Schema.Types.ObjectId,
-            required: true,
-            ref: 'User',
-        },
-        title: {
-            type: String,
-            required: true,
-        },
-        location: {
-            type: String,
-            required: true,
-        },
-        city: String,
-        state: String,
-        price: {
-            type: Number,
-            required: true,
-        },
-        size: {
-            type: Number,
-            required: true,
-        },
-        size_unit: {
-            type: String,
-            default: 'acres',
-        },
-        description: String,
-        images: [String],
-        status: {
-            type: String,
-            enum: ['available', 'pending', 'sold'],
-            default: 'available',
-        },
-        views_count: {
-            type: Number,
-            default: 0,
-        },
-        land_type: String,
-        facing_direction: String,
-        road_width_feet: Number,
-        is_clear_title: {
-            type: Boolean,
-            default: false
-        },
-        water_available: {
-            type: Boolean,
-            default: false
-        },
-        electricity_available: {
-            type: Boolean,
-            default: false
-        }
-        // Add other fields as per frontend requirements if needed
+const Property = sequelize.define('Property', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
     },
-    {
-        timestamps: true,
+    ownerId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+    },
+    title: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    location: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    city: {
+        type: DataTypes.STRING,
+    },
+    state: {
+        type: DataTypes.STRING,
+    },
+    price: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+    },
+    size: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+    },
+    size_unit: {
+        type: DataTypes.STRING,
+        defaultValue: 'acres',
+    },
+    description: {
+        type: DataTypes.TEXT,
+    },
+    images: {
+        type: DataTypes.JSON, // Stores array of strings
+        defaultValue: [],
+    },
+    status: {
+        type: DataTypes.ENUM('available', 'pending', 'sold'),
+        defaultValue: 'available',
+    },
+    views_count: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
+    land_type: {
+        type: DataTypes.STRING,
+    },
+    facing_direction: {
+        type: DataTypes.STRING,
+    },
+    road_width_feet: {
+        type: DataTypes.FLOAT,
+    },
+    is_clear_title: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    water_available: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    electricity_available: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
-);
+}, {
+    timestamps: true,
+});
 
-const Property = mongoose.model('Property', propertySchema);
 module.exports = Property;

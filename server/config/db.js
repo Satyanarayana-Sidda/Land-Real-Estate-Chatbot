@@ -1,13 +1,27 @@
-const mongoose = require('mongoose');
+const { Sequelize } = require('sequelize');
+
+const sequelize = new Sequelize(
+    process.env.DB_NAME || 'estategpt',
+    process.env.DB_USER || 'admin',
+    process.env.DB_PASSWORD || 'EstateGPTSecret123!',
+    {
+        host: process.env.DB_HOST || '127.0.0.1',
+        dialect: 'mysql',
+        logging: false, // Set to true to see SQL queries
+    }
+);
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/landchat');
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
+        await sequelize.authenticate();
+        console.log(`MySQL Connected: ${sequelize.config.host}`);
+        // Synchronize models
+        await sequelize.sync({ alter: true });
+        console.log('Database synchronized');
     } catch (error) {
-        console.error(`Error: ${error.message}`);
+        console.error(`Database Connection Error: ${error.message}`);
         process.exit(1);
     }
 };
 
-module.exports = connectDB;
+module.exports = { sequelize, connectDB };

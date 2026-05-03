@@ -1,26 +1,37 @@
 const asyncHandler = require('express-async-handler');
-const Property = require('../models/Property');
+const { Property, User } = require('../models');
+const { Op } = require('sequelize');
 
 // @desc    Fetch all properties (with filtering)
 // @route   GET /api/properties
 const getProperties = asyncHandler(async (req, res) => {
-    const keyword = req.query.keyword
-        ? {
-            $or: [
-                { title: { $regex: req.query.keyword, $options: 'i' } },
-                { location: { $regex: req.query.keyword, $options: 'i' } },
-            ],
-        }
-        : {};
+    const keyword = req.query.keyword ? req.query.keyword : '';
+    
+    const whereClause = {
+        status: 'available'
+    };
 
-    const properties = await Property.find({ ...keyword, status: 'available' }).sort({ createdAt: -1 });
+    if (keyword) {
+        whereClause[Op.or] = [
+            { title: { [Op.like]: `%${keyword}%` } },
+            { location: { [Op.like]: `%${keyword}%` } }
+        ];
+    }
+
+    const properties = await Property.findAll({ 
+        where: whereClause,
+        order: [['createdAt', 'DESC']]
+    });
+    
     res.json(properties);
 });
 
 // @desc    Fetch single property
 // @route   GET /api/properties/:id
 const getPropertyById = asyncHandler(async (req, res) => {
-    const property = await Property.findById(req.params.id).populate('owner', 'full_name email phone');
+    const property = await Property.findByPk(req.params.id, {
+        include: [{ model: User, as: 'owner', attributes: ['id', 'full_name', 'email', 'phone'] }]
+    });
 
     if (property) {
         // Increment views
@@ -43,8 +54,8 @@ const createProperty = asyncHandler(async (req, res) => {
         road_width_feet, is_clear_title, water_available, electricity_available
     } = req.body;
 
-    const property = new Property({
-        owner: req.user._id,
+    const property = await Property.create({
+        ownerId: req.user.id,
         title,
         location,
         city,
@@ -63,20 +74,17 @@ const createProperty = asyncHandler(async (req, res) => {
         electricity_available
     });
 
-    const createdProperty = await property.save();
-    res.status(201).json(createdProperty);
+    res.status(201).json(property);
 });
 
 // @desc    Update a property
 // @route   PUT /api/properties/:id
 // @access  Private/Admin
 const updateProperty = asyncHandler(async (req, res) => {
-    const { title, location, price, size, size_unit, description, images, status } = req.body;
-
-    const property = await Property.findById(req.params.id);
+    const property = await Property.findByPk(req.params.id);
 
     if (property) {
-        if (property.owner.toString() !== req.user._id.toString()) {
+        if (property.ownerId !== req.user.id) {
             res.status(401);
             throw new Error('Not authorized to update this property');
         }
@@ -111,7 +119,10 @@ const updateProperty = asyncHandler(async (req, res) => {
 // @route   GET /api/properties/myproperties
 // @access  Private/Admin
 const getMyProperties = asyncHandler(async (req, res) => {
-    const properties = await Property.find({ owner: req.user._id }).sort({ createdAt: -1 });
+    const properties = await Property.findAll({ 
+        where: { ownerId: req.user.id },
+        order: [['createdAt', 'DESC']]
+    });
     res.json(properties);
 });
 

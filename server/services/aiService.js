@@ -1,5 +1,5 @@
-
-const Property = require('../models/Property');
+const { Property } = require('../models');
+const { Op } = require('sequelize');
 
 /**
  * Handles rule-based chatbot responses as a fallback or for performance.
@@ -8,7 +8,7 @@ const Property = require('../models/Property');
  */
 const handleRuleBasedAnalytics = async (message) => {
     const lowerMsg = message.toLowerCase().trim();
-    let query = { status: 'available' };
+    let whereClause = { status: 'available' };
     let responseText = "Based on market data, here are some relevant property listings:";
     let searchPerformed = false;
 
@@ -26,10 +26,10 @@ const handleRuleBasedAnalytics = async (message) => {
         else if (unit.includes('cr') || unit.includes('crore')) price *= 10000000;
 
         if (['above', 'over', 'min', 'minimum'].includes(operator)) {
-            query.price = { $gte: price };
+            whereClause.price = { [Op.gte]: price };
             responseText = `EstateGPT Analytics: Identified properties valuation above ₹${price.toLocaleString()}. Check these options:`;
         } else {
-            query.price = { $lte: price };
+            whereClause.price = { [Op.lte]: price };
             responseText = `EstateGPT Analytics: Identified high-value properties under ₹${price.toLocaleString()}. Recommended for your budget:`;
         }
         searchPerformed = true;
@@ -43,9 +43,9 @@ const handleRuleBasedAnalytics = async (message) => {
     if (locationIndex !== -1 && words[locationIndex + 1]) {
         const potentialLocation = words[locationIndex + 1].replace(/[^a-zA-Z]/g, '');
         if (potentialLocation.length > 2) {
-            query.$or = [
-                { location: { $regex: potentialLocation, $options: 'i' } },
-                { city: { $regex: potentialLocation, $options: 'i' } }
+            whereClause[Op.or] = [
+                { location: { [Op.like]: `%${potentialLocation}%` } },
+                { city: { [Op.like]: `%${potentialLocation}%` } }
             ];
             responseText = searchPerformed ? `${responseText} in ${potentialLocation}` : `EstateGPT Location Report: Curated land listings in ${potentialLocation}:`;
             searchPerformed = true;
@@ -59,21 +59,29 @@ const handleRuleBasedAnalytics = async (message) => {
 
         if (keywords.length > 0) {
             const keyword = keywords[0]; 
-            query.$or = [
-                { title: { $regex: keyword, $options: 'i' } },
-                { description: { $regex: keyword, $options: 'i' } },
-                { land_type: { $regex: keyword, $options: 'i' } }
+            whereClause[Op.or] = [
+                { title: { [Op.like]: `%${keyword}%` } },
+                { description: { [Op.like]: `%${keyword}%` } },
+                { land_type: { [Op.like]: `%${keyword}%` } }
             ];
             responseText = `EstateGPT Insight: Keyword search results for "${keyword}":`;
         }
     }
 
     // Database Lookup
-    let properties = await Property.find(query).sort({ createdAt: -1 }).limit(5);
+    let properties = await Property.findAll({ 
+        where: whereClause, 
+        order: [['createdAt', 'DESC']], 
+        limit: 5 
+    });
 
     // Fallback Result if no matches
     if (properties.length === 0) {
-        properties = await Property.find({ status: 'available' }).sort({ createdAt: -1 }).limit(5);
+        properties = await Property.findAll({ 
+            where: { status: 'available' }, 
+            order: [['createdAt', 'DESC']], 
+            limit: 5 
+        });
         responseText = "EstateGPT Note: No exact matches found for high-precision query. Broadening search to top-tier available listings:";
     }
 

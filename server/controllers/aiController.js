@@ -1,5 +1,5 @@
 const asyncHandler = require('express-async-handler');
-const Property = require('../models/Property');
+const { Property } = require('../models');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { handleRuleBasedAnalytics } = require('../services/aiService');
 
@@ -33,13 +33,15 @@ const chatWithAI = asyncHandler(async (req, res) => {
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-            const propertyContext = await Property.find({ status: 'available' })
-                .select('title price location city state size size_unit land_type description')
-                .sort({ createdAt: -1 })
-                .limit(20);
+            const propertyContext = await Property.findAll({ 
+                where: { status: 'available' },
+                attributes: ['title', 'price', 'location', 'city', 'state', 'size', 'size_unit', 'land_type', 'description'],
+                order: [['createdAt', 'DESC']],
+                limit: 20
+            });
 
             const contextString = propertyContext.map((p, i) =>
-                `${i + 1}. ${p.title} (${p.land_type}) in ${p.location}, ${p.city}. Price: ${p.price}. Size: ${p.size} ${p.size_unit}. Desc: ${p.description.substring(0, 50)}...`
+                `${i + 1}. ${p.title} (${p.land_type}) in ${p.location}, ${p.city}. Price: ${p.price}. Size: ${p.size} ${p.size_unit}. Desc: ${p.description ? p.description.substring(0, 50) : ''}...`
             ).join('\n');
 
             const prompt = `

@@ -1,5 +1,5 @@
 const asyncHandler = require('express-async-handler');
-const User = require('../models/User');
+const { User, Property, UserFavorites } = require('../models');
 const jwt = require('jsonwebtoken');
 
 const generateToken = (id) => {
@@ -13,17 +13,16 @@ const generateToken = (id) => {
 const authUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
 
     if (user && (await user.matchPassword(password))) {
         res.json({
-            _id: user._id,
+            id: user.id,
             full_name: user.full_name,
             email: user.email,
             role: user.role,
             avatar_url: user.avatar_url,
-            favorites: user.favorites,
-            token: generateToken(user._id),
+            token: generateToken(user.id),
         });
     } else {
         res.status(401);
@@ -36,7 +35,7 @@ const authUser = asyncHandler(async (req, res) => {
 const registerUser = asyncHandler(async (req, res) => {
     const { full_name, email, password, role } = req.body;
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ where: { email } });
 
     if (userExists) {
         res.status(400);
@@ -52,12 +51,11 @@ const registerUser = asyncHandler(async (req, res) => {
 
     if (user) {
         res.status(201).json({
-            _id: user._id,
+            id: user.id,
             full_name: user.full_name,
             email: user.email,
             role: user.role,
-            favorites: user.favorites,
-            token: generateToken(user._id),
+            token: generateToken(user.id),
         });
     } else {
         res.status(400);
@@ -68,16 +66,15 @@ const registerUser = asyncHandler(async (req, res) => {
 // @desc    Get user profile
 // @route   GET /api/auth/profile
 const getUserProfile = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id);
+    const user = await User.findByPk(req.user.id);
 
     if (user) {
         res.json({
-            _id: user._id,
+            id: user.id,
             full_name: user.full_name,
             email: user.email,
             role: user.role,
             avatar_url: user.avatar_url,
-            favorites: user.favorites,
         });
     } else {
         res.status(404);
@@ -88,7 +85,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 // @desc    Update user profile
 // @route   PUT /api/auth/profile
 const updateUserProfile = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id);
+    const user = await User.findByPk(req.user.id);
 
     if (user) {
         user.full_name = req.body.full_name || user.full_name;
@@ -102,13 +99,12 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         const updatedUser = await user.save();
 
         res.json({
-            _id: updatedUser._id,
+            id: updatedUser.id,
             full_name: updatedUser.full_name,
             email: updatedUser.email,
             role: updatedUser.role,
             avatar_url: updatedUser.avatar_url,
-            favorites: updatedUser.favorites,
-            token: generateToken(updatedUser._id),
+            token: generateToken(updatedUser.id),
         });
     } else {
         res.status(404);
@@ -119,10 +115,12 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @desc    Get user favorites
 // @route   GET /api/auth/favorites
 const getFavorites = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id).populate('favorites');
+    const user = await User.findByPk(req.user.id, {
+        include: [{ model: Property, as: 'favoriteProperties' }]
+    });
     
     if (user) {
-        res.json(user.favorites);
+        res.json(user.favoriteProperties);
     } else {
         res.status(404);
         throw new Error('User not found');
@@ -132,21 +130,20 @@ const getFavorites = asyncHandler(async (req, res) => {
 // @desc    Toggle favorite property
 // @route   PUT /api/auth/favorites/:propertyId
 const toggleFavorite = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id);
+    const user = await User.findByPk(req.user.id);
     const propertyId = req.params.propertyId;
 
     if (user) {
-        const isFavorite = user.favorites.includes(propertyId);
+        const hasFavorite = await user.hasFavoriteProperty(propertyId);
 
-        if (isFavorite) {
-            user.favorites = user.favorites.filter(id => id.toString() !== propertyId);
+        if (hasFavorite) {
+            await user.removeFavoriteProperty(propertyId);
         } else {
-            user.favorites.push(propertyId);
+            await user.addFavoriteProperty(propertyId);
         }
 
-        const updatedUser = await user.save();
-        
-        res.json(updatedUser.favorites);
+        const updatedFavorites = await user.getFavoriteProperties();
+        res.json(updatedFavorites);
     } else {
         res.status(404);
         throw new Error('User not found');
