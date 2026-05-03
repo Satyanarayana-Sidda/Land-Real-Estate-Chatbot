@@ -204,6 +204,8 @@ Resources:
             pm2 save
             
             echo "Deployment finished successfully!"
+
+  AppAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
@@ -289,6 +291,18 @@ Resources:
             Id: S3Origin
             S3OriginConfig:
               OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}
+          - DomainName: !GetAtt AppALB.DNSName
+            Id: ALBOrigin
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+        CacheBehaviors:
+          - TargetOriginId: ALBOrigin
+            PathPattern: /api/*
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+            ForwardedValues:
+              QueryString: true
+              Headers: ['*']
         DefaultCacheBehavior:
           TargetOriginId: S3Origin
           ViewerProtocolPolicy: redirect-to-https
