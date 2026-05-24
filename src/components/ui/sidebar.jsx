@@ -20,14 +20,6 @@ const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 
-  open: boolean;
-  setOpen: (open) => void;
-  openMobile: boolean;
-  setOpenMobile: (open) => void;
-  isMobile: boolean;
-  toggleSidebar: () => void;
-};
-
 const SidebarContext = React.createContext(null);
 
 function useSidebar() {
@@ -39,9 +31,7 @@ function useSidebar() {
   return context;
 }
 
-const SidebarProvider = React.forwardRef void;
-  }
->(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
+const SidebarProvider = React.forwardRef(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
@@ -50,7 +40,7 @@ const SidebarProvider = React.forwardRef void;
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
-    (value: boolean | ((value) => boolean)) => {
+    (value) => {
       const openState = typeof value === "function" ? value(open) : value;
       if (setOpenProp) {
         setOpenProp(openState);
@@ -71,7 +61,7 @@ const SidebarProvider = React.forwardRef void;
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event) => {
       if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         toggleSidebar();
@@ -108,7 +98,7 @@ const SidebarProvider = React.forwardRef void;
               "--sidebar-width": SIDEBAR_WIDTH,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
               ...style,
-            }.CSSProperties
+            }
           }
           className={cn("group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar", className)}
           ref={ref}
@@ -147,7 +137,7 @@ const Sidebar = React.forwardRef(({ side = "left", variant = "sidebar", collapsi
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            }.CSSProperties
+            }
           }
           side={side}
         >

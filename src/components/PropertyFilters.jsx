@@ -19,7 +19,7 @@ const PropertyFiltersComponent = ({ filters, onFilterChange, onClear }) => {
     { value: 'views', label: 'Most Viewed' },
   ];
 
-  const updateFilter = (key: keyof Filters, value) => {
+  const updateFilter = (key, value) => {
     onFilterChange({ ...filters, [key]: value || undefined });
   };
 
