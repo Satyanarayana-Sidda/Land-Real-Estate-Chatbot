@@ -2,6 +2,14 @@
 
 EstateGPT is a full-stack real-estate platform that lets customers search land listings with natural-language queries and communicate with property sellers. The project includes a production-oriented AWS infrastructure and automated container delivery pipeline.
 
+[![CI/CD](https://github.com/Satyanarayana-Sidda/Land-Real-Estate-Chatbot/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Satyanarayana-Sidda/Land-Real-Estate-Chatbot/actions/workflows/ci-cd.yml)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![AWS](https://img.shields.io/badge/AWS-Cloud%20Infrastructure-FF9900?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![MySQL](https://img.shields.io/badge/MySQL-RDS-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+
 ## Cloud and DevOps Highlights
 
 - Designed AWS infrastructure with EC2, Application Load Balancer, Auto Scaling, VPC, S3, CloudFront, ECR, IAM, RDS, and CloudWatch.
