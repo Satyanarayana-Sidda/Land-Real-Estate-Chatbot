@@ -54,7 +54,7 @@ Delivery: GitHub Actions -> ECR/S3 -> ASG refresh/CloudFront invalidation
 ### Application
 
 - React, Vite, React Router, Tailwind CSS, Axios
-- Node.js, Express, Sequelize
+- Node.js 24, Express, Sequelize
 - MySQL / Amazon RDS
 - Google Gemini API
 
