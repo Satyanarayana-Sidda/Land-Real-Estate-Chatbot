@@ -10,7 +10,11 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
+    : undefined;
+
+app.use(cors({ origin: allowedOrigins || 'http://localhost:8081' }));
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/authRoutes'));

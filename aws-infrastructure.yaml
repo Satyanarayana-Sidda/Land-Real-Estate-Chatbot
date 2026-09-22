@@ -9,8 +9,20 @@ Parameters:
   DBPassword:
     Type: String
     NoEcho: true
-    Default: EstateGPTSecret123!
     Description: Database admin password
+  JWTSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Secret used to sign application tokens
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Optional Gemini API key
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for the public ALB HTTPS listener
 
 Resources:
   # ==========================================
@@ -77,6 +89,56 @@ Resources:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
 
+  NatEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AppVPC
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AppVPC
+      CidrBlock: 10.0.12.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AppVPC
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
   # ==========================================
   # Security Groups
   # ==========================================
@@ -87,8 +149,8 @@ Resources:
       VpcId: !Ref AppVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
 
   EC2SecurityGroup:
@@ -121,8 +183,8 @@ Resources:
     Properties:
       DBSubnetGroupDescription: Subnets for RDS
       SubnetIds:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
 
   AppDatabase:
     Type: AWS::RDS::DBInstance
@@ -153,12 +215,71 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref EC2Role
+
+  ApiContainerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: estategpt-api
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+
+  ApiHighCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: API Auto Scaling instance CPU is high
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AppAutoScalingGroup
+
+  ApiUnhealthyTargetAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: ALB has unhealthy API targets
+      Namespace: AWS/ApplicationELB
+      MetricName: UnHealthyHostCount
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TargetGroup
+          Value: !GetAtt ALBTargetGroup.TargetGroupFullName
+        - Name: LoadBalancer
+          Value: !GetAtt AppALB.LoadBalancerFullName
+
+  Api5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: ALB is returning API server errors
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TargetGroup
+          Value: !GetAtt ALBTargetGroup.TargetGroupFullName
+        - Name: LoadBalancer
+          Value: !GetAtt AppALB.LoadBalancerFullName
 
   # ==========================================
   # 4. Backend Compute (Amazon EC2 & ASG)
@@ -178,39 +299,31 @@ Resources:
             #!/bin/bash
             exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
             yum update -y
-            curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-            yum install -y nodejs git
-            npm install -g pm2
-            
-            cd /home/ec2-user
-            git clone https://github.com/Satyanarayana-Sidda/Land-Real-Estate-Chatbot.git
-            cd Land-Real-Estate-Chatbot/server
-            
-            cat << 'EOF' > .env
+            yum install -y docker
+            systemctl enable --now docker
+
+            cat << 'EOF' > /etc/estategpt.env
             PORT=5000
-            DB_HOST=estategpt-production-stack-appdatabase-hmgxjlvvbyfi.csdsiwqmwpbm.us-east-1.rds.amazonaws.com
+            NODE_ENV=production
+            DB_HOST=${AppDatabase.Endpoint.Address}
             DB_NAME=estategpt
-            DB_USER=admin
-            DB_PASSWORD=EstateGPTSecret123!
-            JWT_SECRET=secret123
-            GEMINI_API_KEY="AIzaSyCqgzaC0zggyLStAV1rR98Vy3Lwd4FoiOM"
+            DB_USER=${DBUsername}
+            DB_PASSWORD=${DBPassword}
+            JWT_SECRET=${JWTSecret}
+            GEMINI_API_KEY=${GeminiApiKey}
             EOF
-            
-            npm install
-            pm2 start server.js
-            
-            # Setup PM2 to start on boot
-            env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u root --hp /root
-            pm2 save
-            
-            echo "Deployment finished successfully!"
+
+            aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+            docker pull ${ApiContainerRepository.RepositoryUri}:latest
+            docker rm -f estategpt-api || true
+            docker run -d --name estategpt-api --restart unless-stopped --env-file /etc/estategpt.env -p 5000:5000 ${ApiContainerRepository.RepositoryUri}:latest
 
   AppAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
       LaunchTemplate:
         LaunchTemplateId: !Ref AppLaunchTemplate
         Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
@@ -244,8 +357,10 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref AppALB
-      Port: 80
-      Protocol: HTTP
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref ALBTargetGroup
@@ -294,7 +409,9 @@ Resources:
           - DomainName: !GetAtt AppALB.DNSName
             Id: ALBOrigin
             CustomOriginConfig:
-              OriginProtocolPolicy: http-only
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
         CacheBehaviors:
           - TargetOriginId: ALBOrigin
             PathPattern: /api/*
@@ -310,6 +427,9 @@ Resources:
             QueryString: false
 
 Outputs:
+  ApiRepositoryUri:
+    Description: ECR repository used by the API deployment pipeline
+    Value: !GetAtt ApiContainerRepository.RepositoryUri
   LoadBalancerURL:
     Description: URL of the Backend API
     Value: !GetAtt AppALB.DNSName
