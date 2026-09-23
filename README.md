@@ -181,14 +181,14 @@ Configure these GitHub repository values before enabling deployment:
 ### Secrets
 
 - `AWS_DEPLOY_ROLE_ARN`
-- `FRONTEND_BUCKET`
-- `CLOUDFRONT_DISTRIBUTION_ID`
-- `ASG_NAME`
 
 ### Variables
 
 - `AWS_REGION`
 - `ECR_REPOSITORY`
+- `CFN_STACK_NAME` (optional; defaults to `EstateGPT-Production-Stack`)
+
+The deployment workflow reads the frontend bucket, CloudFront distribution, and Auto Scaling Group names from the CloudFormation stack outputs. If the stack was created before those outputs were added, update the stack once with `aws-infrastructure.yaml` before rerunning CI/CD.
 
 The AWS deployment role should trust GitHub Actions through OIDC and be restricted to the required ECR, S3, CloudFront, and Auto Scaling actions.
 

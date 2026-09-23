@@ -436,3 +436,12 @@ Outputs:
   CloudFrontURL:
     Description: URL of the Frontend Website
     Value: !GetAtt FrontendCloudFront.DomainName
+  FrontendBucketName:
+    Description: S3 bucket used for the frontend deployment
+    Value: !Ref FrontendBucket
+  CloudFrontDistributionId:
+    Description: CloudFront distribution used for the frontend deployment
+    Value: !Ref FrontendCloudFront
+  AutoScalingGroupName:
+    Description: Auto Scaling Group used for API instance refreshes
+    Value: !Ref AppAutoScalingGroup

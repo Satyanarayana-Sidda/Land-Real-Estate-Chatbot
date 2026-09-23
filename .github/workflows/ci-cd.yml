@@ -8,6 +8,7 @@ on:
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'estategpt-api' }}
+  CFN_STACK_NAME: ${{ vars.CFN_STACK_NAME || 'EstateGPT-Production-Stack' }}
 
 jobs:
   validate:
@@ -75,6 +76,40 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+      - name: Resolve CloudFormation deployment resources
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AWS_DEPLOY_ROLE_ARN}" ]; then
+            echo "Missing required GitHub secret: AWS_DEPLOY_ROLE_ARN" >&2
+            exit 1
+          fi
+          aws sts get-caller-identity
+          outputs=$(aws cloudformation describe-stacks \
+            --stack-name "${CFN_STACK_NAME}" \
+            --query 'Stacks[0].Outputs' \
+            --output json)
+          get_output() {
+            value=$(printf '%s' "${outputs}" | jq -r --arg key "$1" '.[] | select(.OutputKey == $key) | .OutputValue')
+            if [ -z "${value}" ] || [ "${value}" = "null" ]; then
+              echo "CloudFormation output not found: $1" >&2
+              exit 1
+            fi
+            printf '%s' "${value}"
+          }
+          echo "FRONTEND_BUCKET=$(get_output FrontendBucketName)" >> "${GITHUB_ENV}"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=$(get_output CloudFrontDistributionId)" >> "${GITHUB_ENV}"
+          echo "ASG_NAME=$(get_output AutoScalingGroupName)" >> "${GITHUB_ENV}"
+      - name: Validate AWS deployment configuration
+        run: |
+          set -euo pipefail
+          for required in FRONTEND_BUCKET CLOUDFRONT_DISTRIBUTION_ID ASG_NAME; do
+            if [ -z "${!required}" ]; then
+              echo "Missing resolved deployment value: ${required}" >&2
+              exit 1
+            fi
+          done
       - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
       - uses: docker/build-push-action@v6
